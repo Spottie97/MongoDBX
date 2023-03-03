@@ -1,51 +1,73 @@
 ﻿using System;
-using MongoDB.Driver;
-using MongoDBX;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
-        var connString = "";
-        var dbName = "";
+        var connectionString = "mongodb://localhost:27017";
+        var databaseName = "mydatabase";
+        var collectionName = "users";
+        var repo = new UserRepo(connectionString, databaseName, collectionName);
 
-        var repository = new UserRepo(connString, dbName);
-
-        var user1 = new User
+        // Insert a new user
+        var newUser = new User
         {
-            FirstName = "Jason",
-            LastName = "Cloete",
+            Id = 1,
+            FirstName = "John",
+            LastName = "Doe",
             Address = new Address
             {
-                Street = "123 Dev St",
-                Suburb = "Downtown",
-                City = "Cape Town",
-                PostalCode = "1010"
+                Street = "123 Main St",
+                Suburb = "Anytown",
+                City = "Springfield",
+                PostalCode = "12345"
             }
         };
+        await repo.InsertUser(newUser);
 
-        repository.Create(user1);
-        
-        //Get All users
-        var users = repository.GetAll();
+        // Get all users
+        var users = await repo.GetAllUsers();
+        Console.WriteLine("All Users:");
         foreach (var user in users)
         {
-            Console.WriteLine($"Name: {user.FirstName} {user.LastName}. Address: {user.Address.Street}, {user.Address.Suburb}, {user.Address.City}, {user.Address.PostalCode}");
+            Console.WriteLine($"{user.Id} {user.FirstName} {user.LastName}");
         }
-        
-        //Update a user
-        var user2 = repository.GetById(user1.Id);
-        user2.FirstName = "NotJason";
-        repository.Update(user2.Id, user2);
-        
-        //Delete a user
-        var user3 = repository.GetById(user1.Id);
-        repository.Remove(user3.Id);
-        
-        //Add a Index on FirstName
-        var indexModel = new CreateIndexModel<User>(
-            Builders<User>.IndexKeys.Ascending(u => u.FirstName),
-            new CreateIndexOptions { Unique = true });
-        repository._users.Indexes.CreateOne(indexModel);
+
+        // Get a user by id
+        var userById = await repo.GetUserById(1);
+        Console.WriteLine($"User with Id=1: {userById.FirstName} {userById.LastName}");
+
+        // Update a user
+        var updatedUser = new User
+        {
+            Id = 1,
+            FirstName = "Jane",
+            LastName = "Doe",
+            Address = new Address
+            {
+                Street = "456 Oak St",
+                Suburb = "Anytown",
+                City = "Springfield",
+                PostalCode = "12345"
+            }
+        };
+        var isUpdated = await repo.UpdateUser(1, updatedUser);
+        if (isUpdated)
+        {
+            Console.WriteLine("User updated successfully.");
+        }
+
+        // Delete a user
+        var isDeleted = await repo.DeleteUser(1);
+        if (isDeleted)
+        {
+            Console.WriteLine("User deleted successfully.");
+        }
+
+        // Create an index on FirstName
+        await repo.CreateFirstNameIndex();
+        Console.WriteLine("Index created on FirstName.");
+
+        Console.ReadLine();
     }
 }

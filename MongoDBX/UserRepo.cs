@@ -1,48 +1,56 @@
-namespace MongoDBX;
 using MongoDB.Driver;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading.Tasks;
 
 public class UserRepo
 {
-    public readonly IMongoCollection<User> _users;
+    private readonly IMongoCollection<User> _users;
 
-    public UserRepo(string connString, string dbName)
+    public UserRepo(string connString, string dbName, string collectionName)
     {
         var client = new MongoClient(connString);
         var database = client.GetDatabase(dbName);
-        _users = database.GetCollection<User>("user");
+        _users = database.GetCollection<User>(collectionName);
     }
 
-    public List<User> GetAll()
+    public async Task<List<User>> GetAllUsers()
     {
-        return _users.Find(user => true).ToList();
+        return await _users.Find(user => true).ToListAsync();
     }
 
-    public User GetById(string id)
+    public async Task<User> GetUserById(int id)
     {
-        return _users.Find<User>(user => user.Id == id).FirstOrDefault();
+        return await _users.Find(user => user.Id == id).FirstOrDefaultAsync();
     }
 
-    public User Create(User user)
+    public async Task InsertUser(User user)
     {
-        _users.InsertOne(user);
-        return user;
+        // Generate a unique Id for the new user
+        var filter = Builders<User>.Filter.Empty;
+        var options = new FindOptions<User, int> { Projection = Builders<User>.Projection.Include(user => user.Id).Sort(Builders<User>.Sort.Descending(user => user.Id)).Limit(1) };
+        var result = await _users.FindAsync(filter, options);
+        var highestId = await result.FirstOrDefaultAsync();
+        user.Id = highestId != 0 ? highestId + 1 : 1;
+
+        await _users.InsertOneAsync(user);
     }
 
-    public void Update(string id, User userIn)
+    public async Task<bool> UpdateUser(int id, User user)
     {
-        _users.ReplaceOne(user => user.Id == id, userIn);
+        var updateResult = await _users.ReplaceOneAsync(filter: user => user.Id == id, replacement: user);
+        return updateResult.IsAcknowledged && updateResult.ModifiedCount > 0;
     }
 
-    public void Remove(User userIn)
+    public async Task<bool> DeleteUser(int id)
     {
-        _users.DeleteOne(user => user.Id == userIn.Id);
+        var deleteResult = await _users.DeleteOneAsync(user => user.Id == id);
+        return deleteResult.IsAcknowledged && deleteResult.DeletedCount > 0;
     }
 
-    public void Remove(string id)
+    public async Task CreateFirstNameIndex()
     {
-        _users.DeleteOne(user => user.Id == id);
+        var indexKeysDefinition = Builders<User>.IndexKeys.Ascending(user => user.FirstName);
+        var indexOptions = new CreateIndexOptions { Unique = true };
+        await _users.Indexes.CreateOneAsync(new CreateIndexModel<User>(indexKeysDefinition, indexOptions));
     }
-    
 }
