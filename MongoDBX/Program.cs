@@ -4,16 +4,16 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        var connectionString = "mongodb://localhost:27017";
-        var databaseName = "mydatabase";
+        var connString = "mongodb://localhost:27017";
+        var dbName = "myTestdb";
         var collectionName = "users";
-        var repo = new UserRepo(connectionString, databaseName, collectionName);
+        var repo = new UserRepo(connString, dbName, collectionName);
 
         // Insert a new user
         var newUser = new User
         {
             Id = 1,
-            FirstName = "John",
+            FirstName = "Koos",
             LastName = "Doe",
             Address = new Address
             {
@@ -24,6 +24,10 @@ class Program
             }
         };
         await repo.InsertUser(newUser);
+        
+        // Create an index on FirstName
+        await repo.CreateFirstNameIndex();
+        Console.WriteLine("Index created on FirstName.");
 
         // Get all users
         var users = await repo.GetAllUsers();
@@ -41,7 +45,7 @@ class Program
         var updatedUser = new User
         {
             Id = 1,
-            FirstName = "Jane",
+            FirstName = "Sam",
             LastName = "Doe",
             Address = new Address
             {
@@ -56,6 +60,7 @@ class Program
         {
             Console.WriteLine("User updated successfully.");
         }
+        Console.WriteLine($"User with Id=1: {updatedUser.FirstName} {updatedUser.LastName}");
 
         // Delete a user
         var isDeleted = await repo.DeleteUser(1);
@@ -63,10 +68,6 @@ class Program
         {
             Console.WriteLine("User deleted successfully.");
         }
-
-        // Create an index on FirstName
-        await repo.CreateFirstNameIndex();
-        Console.WriteLine("Index created on FirstName.");
 
         Console.ReadLine();
     }
